@@ -1,0 +1,60 @@
+name: Django Testing and Deploy
+
+on:
+  push:
+    branches: [video]
+
+jobs:
+  tests:
+    runs-on: ubuntu-20.04
+    env:
+      SECRET_KEY: ${{ secrets.SECRET_KEY }}
+      DEBUG: "0"
+      ALLOWED_HOSTS: ${{ secrets.ALLOWED_HOSTS }}
+      DB_ENGINE: ${{ secrets.ENGINE }}
+      DB_NAME: ${{ secrets.NAME }}
+      DB_USER: ${{ secrets.USER }}
+      DB_PASSWORD: ${{ secrets.PASSWORD }}
+      DB_HOST: ${{ secrets.HOST }}
+      DB_PORT: ${{ secrets.PORT }}
+    services:
+      postgres_main:
+        image: postgres:12
+        env:
+          POSTGRES_USER: ${{ env.DB_USER }}
+          POSTGRES_PASSWORD: ${{ env.DB_PASSWORD }}
+          POSTGRES_DB: ${{ env.DB_NAME }}
+        ports:
+          - 5432:5432
+        options:
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+      - name: Проверяем репозиторий на наличие изменений
+        uses: actions/checkout@v2
+
+      - name: Установка python
+        uses: actions/setup-python@v3
+        with:
+          python-version: 3.10
+
+      - name: Установка библиотек
+        run: pip install -r requirements.txt
+
+      - name: Линтинг кода
+        run: flake8 logistic/ --exclude=logistic/migrations/
+
+      - name: Тесты
+        run: python manage.py test
+        env:
+          SECRET_KEY: ${{ env.SECRET_KEY }}
+          DEBUG: "0"
+          ALLOWED_HOSTS: ${{ env.ALLOWED_HOSTS }}
+          NAME: ${{ env.DB_NAME }}
+          USER: ${{ env.DB_USER }}
+          PASSWORD: ${{ env.DB_PASSWORD }}
+          HOST: ${{ env.DB_HOST }}
+          PORT: ${{ env.DB_PORT }}
+          ENGINE: ${{ env.DB_ENGINE }}
